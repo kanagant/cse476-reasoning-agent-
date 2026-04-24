@@ -10,7 +10,8 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Union
- 
+from src.methods.baseline import solve_baseline
+from src.methods.cot import solve_cot 
 import requests
  
 log = logging.getLogger(__name__)
@@ -159,15 +160,12 @@ def clean_answer(text: str) -> str:
  
  
 def agent_loop(question: str, llm: LLM, max_calls: int = 20) -> str:
-   
     budget = CallBudget(max_calls=max_calls)
- 
-    prompt = f"Question:\n{question}\n\nFinal answer:"
-    answer = clean_answer(llm.call(prompt, budget))
- 
+
+    answer = solve_cot(question, llm, budget)
+
     llm.stats.per_question_calls.append(budget.used)
     return answer or "unknown"
-  
  
 def load_questions(path: PathLike) -> List[Dict[str, Any]]:
     path = Path(path)
