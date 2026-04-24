@@ -11,71 +11,106 @@ an answers JSON file where each entry contains a string under the "output" key.
 
 from __future__ import annotations
 
-import json
+import argparse
+import logging
+import os
+import sys
+from getpass import getpass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Tuple
 
+from src.agent import (
+    LLM,
+    agent_loop,
+    load_questions,
+    load_answers,
+    save_answers_atomic,
+    validate_results,
+)
 
 INPUT_PATH = Path("cse_476_final_project_test_data.json")
 OUTPUT_PATH = Path("cse_476_final_project_answers.json")
 
+CHECKPOINT_EVERY = 25
+MAX_CALLS_PER_QUESTION = 20
 
-def load_questions(path: Path) -> List[Dict[str, Any]]:
-    with path.open("r") as fp:
-        data = json.load(fp)
-    if not isinstance(data, list):
-        raise ValueError("Input file must contain a list of question objects.")
-    return data
+def get_config() -> Tuple[str, str, str]:
+    """Read API credentials from env; prompt for the key if missing."""
+    try:
+        from dotenv import load_dotenv  # type: ignore
+        load_dotenv()
+    except ImportError:
+        pass
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        api_key = getpass("Enter SOL/Voyager API key: ").strip()
+    if not api_key:
+        raise SystemExit("No API key provided.")
+
+    api_base = os.getenv("API_BASE", "https://openai.rc.asu.edu/v1")
+    model = os.getenv("MODEL_NAME", "qwen3-30b-a3b-instruct-2507")
+    return api_key, api_base, model
 
 
-def build_answers(questions: List[Dict[str, Any]]) -> List[Dict[str, str]]:
-    answers = []
-    for idx, question in enumerate(questions, start=1):
-        # Example: assume you have an agent loop that produces an answer string.
-        # real_answer = agent_loop(question["input"])
-        # answers.append({"output": real_answer})
-        placeholder_answer = f"Placeholder answer for question {idx}"
-        answers.append({"output": placeholder_answer})
-    return answers
-
-
-def validate_results(
-    questions: List[Dict[str, Any]], answers: List[Dict[str, Any]]
-) -> None:
-    if len(questions) != len(answers):
-        raise ValueError(
-            f"Mismatched lengths: {len(questions)} questions vs {len(answers)} answers."
-        )
-    for idx, answer in enumerate(answers):
-        if "output" not in answer:
-            raise ValueError(f"Missing 'output' field for answer index {idx}.")
-        if not isinstance(answer["output"], str):
-            raise TypeError(
-                f"Answer at index {idx} has non-string output: {type(answer['output'])}"
-            )
-        if len(answer["output"]) >= 5000:
-            raise ValueError(
-                f"Answer at index {idx} exceeds 5000 characters "
-                f"({len(answer['output'])} chars). Please make sure your answer does not include any intermediate results."
-            )
+def parse_args() -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="Run the reasoning agent on the test set.")
+    p.add_argument("--input", type=Path, default=INPUT_PATH)
+    p.add_argument("--output", type=Path, default=OUTPUT_PATH)
+    p.add_argument("--limit", type=int, default=None,
+                   help="Only run the first N questions (smoke tests).")
+    p.add_argument("--restart", action="store_true",
+                   help="Ignore any existing answers file and start over.")
+    p.add_argument("--max-calls", type=int, default=MAX_CALLS_PER_QUESTION)
+    p.add_argument("--verbose", "-v", action="store_true")
+    return p.parse_args()
 
 
 def main() -> None:
-    questions = load_questions(INPUT_PATH)
-    answers = build_answers(questions)
-
-    with OUTPUT_PATH.open("w") as fp:
-        json.dump(answers, fp, ensure_ascii=False, indent=2)
-
-    with OUTPUT_PATH.open("r") as fp:
-        saved_answers = json.load(fp)
-    validate_results(questions, saved_answers)
-    print(
-        f"Wrote {len(answers)} answers to {OUTPUT_PATH} "
-        "and validated format successfully."
+    args = parse_args()
+    logging.basicConfig(
+        level=logging.INFO if args.verbose else logging.WARNING,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
+
+    api_key, api_base, model = get_config()
+    llm = LLM(api_key=api_key, api_base=api_base, model=model)
+
+    questions = load_questions(args.input)
+    if args.limit is not None:
+        questions = questions[: args.limit]
+    print(f"Loaded {len(questions)} questions from {args.input}")
+
+    # Resume support: pick up where the last run left off.
+    if args.restart or not args.output.exists():
+        answers: list = []
+    else:
+        answers = load_answers(args.output)[: len(questions)]
+        if answers:
+            print(f"Resuming from checkpoint: {len(answers)} already saved.")
+
+    try:
+        for idx in range(len(answers), len(questions)):
+            q = str(questions[idx].get("input", ""))
+            answers.append({"output": agent_loop(q, llm, max_calls=args.max_calls)})
+
+            if (idx + 1) % CHECKPOINT_EVERY == 0:
+                save_answers_atomic(args.output, answers)
+                if args.verbose:
+                    print(f"[{idx + 1}/{len(questions)}] checkpoint | {llm.stats.summary()}")
+
+    except KeyboardInterrupt:
+        save_answers_atomic(args.output, answers)
+        print(f"\nInterrupted. Saved {len(answers)} answers to {args.output}. "
+              "Re-run to resume.", file=sys.stderr)
+        raise
+
+    save_answers_atomic(args.output, answers)
+    validate_results(questions, load_answers(args.output))
+
+    print(f"\nWrote {len(answers)} answers to {args.output}.")
+    print(f"Final usage: {llm.stats.summary()}")
 
 
 if __name__ == "__main__":
     main()
-

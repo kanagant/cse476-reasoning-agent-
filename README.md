@@ -1,5 +1,17 @@
 # cse476-reasoning-agent
-Starter project skeleton for the CSE 476 final reasoning agent.
 
-Secrets go in `.env` (not committed).
-Implementation is not added yet.
+## Setup
+```bash
+pip install -r requirements.txt
+export OPENAI_API_KEY="your-sol-key"
+```
+
+## Run
+```bash
+python generate_answer.py --limit 3 --verbose   # smoke test
+python generate_answer.py --verbose              # full run
+```
+
+## Files
+- `agent.py` — LLM wrapper, budget, agent loop
+- `generate_answer.py` — entrypoint, reads test data, writes answers JSON
