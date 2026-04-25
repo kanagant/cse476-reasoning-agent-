@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Union
 from src.methods.baseline import solve_baseline
 from src.methods.cot import solve_cot 
+from src.methods.self_consistency import solve_self_consistency
 import requests
  
 log = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ PathLike = Union[str, os.PathLike]
  
 @dataclass
 class CallBudget:
-    """Per-question LLM call cap. Enforces the spec's ≤20-calls rule."""
+    
     max_calls: int = 20
     used: int = 0
  
@@ -33,7 +34,7 @@ class CallBudget:
  
 @dataclass
 class UsageStats:
-    """Cumulative usage across a whole run (for the --verbose summary)."""
+   
     total_calls: int = 0
     total_prompt_tokens: int = 0
     total_completion_tokens: int = 0
@@ -51,18 +52,13 @@ class UsageStats:
  
  
 DEFAULT_SYSTEM = (
-    "You are a careful reasoning assistant. "
-    "Reply with ONLY the final answer — no explanation, no 'Answer:' prefix."
+    "You solve questions carefully. "
+    "When you reply, give only the final answer unless the user asks for steps."
 )
  
  
 class LLM:
-    """
-    Wrapper around SOL's /v1/chat/completions.
- 
-    Person 2 / Person 3: ALWAYS call through `llm.call(...)`. Never
-    `requests.post` directly — you'd bypass retries and usage tracking.
-    """
+   
  
     def __init__(
         self,
@@ -90,7 +86,7 @@ class LLM:
         temperature: float = 0.0,
         max_tokens: int = 512,
     ) -> str:
-        """Single-turn call. Returns '' if budget is exhausted or call fails."""
+        
         if not budget.can_call():
             return ""
  
@@ -105,8 +101,6 @@ class LLM:
             "max_tokens": max_tokens,
         }
  
-        # Budget is consumed once, even if we retry — a transient 500
-        # shouldn't eat into the question's cap.
         budget.consume(1)
  
         for attempt in range(self.max_retries + 1):
@@ -122,7 +116,7 @@ class LLM:
                     self.stats.total_completion_tokens += usage.get("completion_tokens", 0)
                     return (text or "").strip()
  
-                # Retry on rate-limit and 5xx only.
+                
                 if resp.status_code == 429 or 500 <= resp.status_code < 600:
                     if attempt < self.max_retries:
                         time.sleep(self.backoff_base ** attempt)
@@ -146,23 +140,43 @@ class LLM:
         return ""
   
 def clean_answer(text: str) -> str:
- 
     if not text:
         return ""
     s = text.strip()
-    fence = re.match(r"^```[a-zA-Z0-9_+-]*\s*\n(.*?)\n```\s*$", s, flags=re.S)
-    if fence:
-        s = fence.group(1).strip()
+    s = re.sub(r"^```[a-zA-Z0-9_+-]*\s*", "", s)
+    s = re.sub(r"\s*```$", "", s).strip()
+    low = s.lower()
     for prefix in ("final answer:", "answer:"):
-        if s.lower().startswith(prefix):
+        if low.startswith(prefix):
             s = s[len(prefix):].strip()
+            low = s.lower()
+    s = re.sub(r"^(?:\([A-Da-d]\)|[A-Da-d][\.\)])\s*", "", s).strip()
+    while len(s) >= 2 and s[0] == s[-1] and s[0] in "\"'":
+        s = s[1:-1].strip()
+    s = " ".join(s.split())
+    if len(s) > 1 and s.endswith("."):
+        s = s[:-1].rstrip()
     return s[:4999]
  
  
+def _mathish(q: str) -> bool:
+    ql = q.lower()
+    if any(x in ql for x in ("$", "\\", "sqrt", "frac", "^", "triangle", "equation")):
+        return True
+    if sum(c.isdigit() for c in q) >= 4:
+        return True
+    if sum(q.count(c) for c in "+-*/=") >= 3:
+        return True
+    return False
+
+
 def agent_loop(question: str, llm: LLM, max_calls: int = 20) -> str:
     budget = CallBudget(max_calls=max_calls)
 
-    answer = solve_cot(question, llm, budget)
+    if _mathish(question):
+        answer = solve_self_consistency(question, llm, budget, num_samples=3)
+    else:
+        answer = solve_cot(question, llm, budget)
 
     llm.stats.per_question_calls.append(budget.used)
     return answer or "unknown"
@@ -191,7 +205,7 @@ def load_answers(path: PathLike) -> List[Dict[str, str]]:
  
  
 def save_answers_atomic(path: PathLike, answers: List[Dict[str, str]]) -> None:
-    """Write via temp + rename so a crash mid-write can't corrupt the file."""
+   
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=path.name + ".", dir=str(path.parent))
