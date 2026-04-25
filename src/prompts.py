@@ -8,8 +8,9 @@ def build_baseline_prompt(question: str) -> str:
 def build_cot_prompt(question: str) -> str:
     return (
         f"Question:\n{question}\n\n"
-        "Think step by step, then end with:\n"
-        "Final Answer: <answer>"
+        "Think through the problem carefully, but in your final response output only one line in exactly this format:\n"
+        "Final Answer: <answer>\n"
+        "Do not include any extra explanation."
     )
 
 
