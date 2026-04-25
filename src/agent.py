@@ -10,8 +10,7 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Union
-from src.methods.baseline import solve_baseline
-from src.methods.cot import solve_cot 
+from src.router import solve_with_router
 import requests
  
 log = logging.getLogger(__name__)
@@ -162,7 +161,7 @@ def clean_answer(text: str) -> str:
 def agent_loop(question: str, llm: LLM, max_calls: int = 20) -> str:
     budget = CallBudget(max_calls=max_calls)
 
-    answer = solve_cot(question, llm, budget)
+    answer = solve_with_router(question, llm, budget)
 
     llm.stats.per_question_calls.append(budget.used)
     return answer or "unknown"
