@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Union
 from src.methods.baseline import solve_baseline
 from src.methods.cot import solve_cot 
 from src.methods.self_consistency import solve_self_consistency
+from src.router import solve_with_router
 import requests
  
 log = logging.getLogger(__name__)
@@ -177,6 +178,7 @@ def agent_loop(question: str, llm: LLM, max_calls: int = 20) -> str:
         answer = solve_self_consistency(question, llm, budget, num_samples=3)
     else:
         answer = solve_cot(question, llm, budget)
+    answer = solve_with_router(question, llm, budget)
 
     llm.stats.per_question_calls.append(budget.used)
     return answer or "unknown"
