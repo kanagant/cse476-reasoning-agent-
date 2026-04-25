@@ -173,13 +173,7 @@ def _mathish(q: str) -> bool:
 
 def agent_loop(question: str, llm: LLM, max_calls: int = 20) -> str:
     budget = CallBudget(max_calls=max_calls)
-
-    if _mathish(question):
-        answer = solve_self_consistency(question, llm, budget, num_samples=3)
-    else:
-        answer = solve_cot(question, llm, budget)
     answer = solve_with_router(question, llm, budget)
-
     llm.stats.per_question_calls.append(budget.used)
     return answer or "unknown"
  
