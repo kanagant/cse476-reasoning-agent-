@@ -31,7 +31,7 @@ from src.agent import (
 INPUT_PATH = Path("cse_476_final_project_test_data.json")
 OUTPUT_PATH = Path("cse_476_final_project_answers.json")
 
-CHECKPOINT_EVERY = 100
+CHECKPOINT_EVERY = 10
 MAX_CALLS_PER_QUESTION = 20
 
 def get_config() -> Tuple[str, str, str]:

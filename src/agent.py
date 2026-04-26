@@ -66,8 +66,8 @@ class LLM:
         api_key: str,
         api_base: str = "https://openai.rc.asu.edu/v1",
         model: str = "qwen3-30b-a3b-instruct-2507",
-        timeout: int = 60,
-        max_retries: int = 3,
+        timeout: int = 20,
+        max_retries: int = 1,
         backoff_base: float = 1.5,
     ):
         self.api_key = api_key
@@ -85,7 +85,7 @@ class LLM:
         *,
         system: str = DEFAULT_SYSTEM,
         temperature: float = 0.0,
-        max_tokens: int = 512,
+        max_tokens: int = 96,
     ) -> str:
         
         if not budget.can_call():

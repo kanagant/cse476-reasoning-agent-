@@ -32,7 +32,7 @@ def clean_local_answer(text: str) -> str:
 
 def solve_baseline(question, llm, budget):
     prompt = build_baseline_prompt(question)
-    response = llm.call(prompt, budget, temperature=0.0, max_tokens=96)
+    response = response = llm.call(prompt, budget, temperature=0.0, max_tokens=48)
     if not response:
         return "unknown"
     lines = [ln.strip() for ln in response.splitlines() if ln.strip()]

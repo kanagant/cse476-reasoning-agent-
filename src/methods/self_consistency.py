@@ -49,12 +49,12 @@ def normalize_answer(text: str) -> str:
     return extract_final_answer(text).strip().lower()
 
 
-def solve_self_consistency(question, llm, budget, num_samples=3):
+def solve_self_consistency(question, llm, budget, num_samples=2):
     responses = []
 
     for _ in range(num_samples):
         prompt = build_cot_prompt(question)
-        response = llm.call(prompt, budget, temperature=0.7, max_tokens=512)
+        response = llm.call(prompt, budget, temperature=0.5, max_tokens=64)
         if response:
             responses.append(response)
 
