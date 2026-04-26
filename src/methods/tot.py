@@ -1,6 +1,5 @@
 from src.methods.cot import extract_final_answer
 
-
 def _clean_lines(text: str):
     if not text:
         return []
@@ -20,14 +19,13 @@ def _clean_lines(text: str):
     return lines
 
 
-def solve_tot(question, llm, budget, branches=2):
+def solve_tot(question, llm, budget, branches=3):
     branch_prompt = (
         f"Question:\n{question}\n\n"
-        f"Generate {branches} different short reasoning approaches for solving this question.\n"
-        "Do not fully solve it.\n"
-        "Return them as a numbered list."
+        f"Generate {branches} different short reasoning approaches for solving this question. "
+        "Do not fully solve it. Return them as a numbered list."
     )
-    branch_text = llm.call(branch_prompt, budget, temperature=0.3, max_tokens=160)
+    branch_text = llm.call(branch_prompt, budget, temperature=0.3, max_tokens=192)
     candidates = _clean_lines(branch_text)[:branches]
 
     if not candidates:
@@ -39,9 +37,7 @@ def solve_tot(question, llm, budget, branches=2):
     select_prompt = (
         f"Question:\n{question}\n\n"
         f"Candidate Approaches:\n{candidates}\n\n"
-        "Choose the best approach.\n"
-        "Return exactly:\n"
-        "BEST: <number>"
+        "Choose the best approach. Return exactly:\nBEST: <number>"
     )
     select_text = llm.call(select_prompt, budget, temperature=0.0, max_tokens=64)
 
@@ -61,8 +57,7 @@ def solve_tot(question, llm, budget, branches=2):
     solve_prompt = (
         f"Question:\n{question}\n\n"
         f"Use this reasoning approach:\n{best_plan}\n\n"
-        "Solve carefully.\n"
-        "Return only the final answer."
+        "Solve carefully. Return only the final answer."
     )
-    final_text = llm.call(solve_prompt, budget, temperature=0.0, max_tokens=160)
+    final_text = llm.call(solve_prompt, budget, temperature=0.0, max_tokens=192)
     return extract_final_answer(final_text) or "unknown"

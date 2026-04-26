@@ -1,4 +1,5 @@
 import re
+
 from src.methods.cot import extract_final_answer
 
 
@@ -38,9 +39,8 @@ def solve_react(question, llm, budget, max_steps=3):
             f"Scratchpad:\n{chr(10).join(scratchpad) if scratchpad else 'None'}"
         )
 
-        response = llm.call(prompt, budget, temperature=0.0, max_tokens=256)
+        response = llm.call(prompt, budget, temperature=0.0, max_tokens=160)
         action = _extract_action(response)
-
         scratchpad.append(response.strip())
 
         if action.upper().startswith("CALCULATE[") and action.endswith("]"):
@@ -63,5 +63,5 @@ def solve_react(question, llm, budget, max_steps=3):
         f"Reasoning Trace:\n{chr(10).join(scratchpad)}\n\n"
         "Give only the final answer."
     )
-    final_text = llm.call(final_prompt, budget, temperature=0.0, max_tokens=256)
+    final_text = llm.call(final_prompt, budget, temperature=0.0, max_tokens=160)
     return extract_final_answer(final_text) or "unknown"

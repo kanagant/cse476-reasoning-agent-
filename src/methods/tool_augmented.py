@@ -1,4 +1,5 @@
 import re
+
 from src.methods.cot import extract_final_answer
 
 
@@ -35,4 +36,38 @@ def solve_tool_augmented(question, llm, budget):
         if result is not None:
             return result[:4999]
 
-    return "unknown"
+    if not budget.can_call():
+        return "unknown"
+
+    decide_prompt = (
+        f"Question:\n{question}\n\n"
+        "If this question can be helped by a calculator, extract a single valid Python arithmetic expression. "
+        "Otherwise return NONE.\n\n"
+        "Reply exactly as:\nEXPR: <expression or NONE>"
+    )
+    decide_text = llm.call(decide_prompt, budget, temperature=0.0, max_tokens=64)
+
+    expr = None
+    for line in decide_text.splitlines():
+        if line.lower().startswith("expr:"):
+            expr = line.split(":", 1)[1].strip()
+            break
+
+    tool_result = None
+    if expr and expr.upper() != "NONE":
+        tool_result = _try_eval_expression(expr)
+
+    if tool_result is None:
+        return "unknown"
+
+    if not budget.can_call():
+        return str(tool_result)[:4999]
+
+    final_prompt = (
+        f"Question:\n{question}\n\n"
+        f"Tool result:\n{tool_result}\n\n"
+        "Use the tool result to answer the question. "
+        "Return only the final answer."
+    )
+    final_text = llm.call(final_prompt, budget, temperature=0.0, max_tokens=96)
+    return extract_final_answer(final_text) or str(tool_result)[:4999]

@@ -1,6 +1,5 @@
 from src.methods.cot import extract_final_answer
 
-
 def _clean_lines(text: str):
     if not text:
         return []
@@ -23,11 +22,10 @@ def _clean_lines(text: str):
 def solve_decomposition(question, llm, budget):
     plan_prompt = (
         f"Question:\n{question}\n\n"
-        "Break this into 2 to 4 smaller subproblems that would help solve it.\n"
-        "Return only the subproblems as a numbered list.\n"
-        "Do not solve them yet."
+        "Break this into 2 to 4 smaller subproblems that help solve it. "
+        "Return only the subproblems as a numbered list. Do not solve them yet."
     )
-    plan_text = llm.call(plan_prompt, budget, temperature=0.0, max_tokens=160)
+    plan_text = llm.call(plan_prompt, budget, temperature=0.0, max_tokens=192)
     steps = _clean_lines(plan_text)[:3]
 
     if not steps:
@@ -41,8 +39,8 @@ def solve_decomposition(question, llm, budget):
         sub_prompt = (
             f"Original Question:\n{question}\n\n"
             f"Subproblem:\n{step}\n\n"
-            "Solve this subproblem carefully.\n"
-            "Return only the answer to this subproblem."
+            "Solve only this subproblem. "
+            "Return only the subproblem answer."
         )
         sub_answer = llm.call(sub_prompt, budget, temperature=0.0, max_tokens=160)
         sub_answer = extract_final_answer(sub_answer)
@@ -57,8 +55,8 @@ def solve_decomposition(question, llm, budget):
     combine_prompt = (
         f"Question:\n{question}\n\n"
         f"Subproblem Answers:\n{solved_steps}\n\n"
-        "Use the subproblem answers to solve the original question.\n"
+        "Use the subproblem answers to solve the original question. "
         "Return only the final answer."
     )
-    final_text = llm.call(combine_prompt, budget, temperature=0.0, max_tokens=160)
+    final_text = llm.call(combine_prompt, budget, temperature=0.0, max_tokens=192)
     return extract_final_answer(final_text) or "unknown"
