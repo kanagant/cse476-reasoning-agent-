@@ -1,6 +1,6 @@
 # CSE 476 Final Project: General-Purpose Reasoning Agent
 
-GitHub Repository: [https://github.com/kanagant/cse476-reasoning-agent](https://github.com/kanagant/cse476-reasoning-agent)
+GitHub Repository: [https://github.com/kanagant/cse476-reasoning-agent](https://github.com/kanagant/cse476-reasoning-agent-)
 
 ## Project Overview
 
