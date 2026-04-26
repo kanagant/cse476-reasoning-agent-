@@ -1,7 +1,5 @@
 from src.methods.baseline import solve_baseline
 from src.methods.cot import solve_cot
-from src.methods.decomposition import solve_decomposition
-from src.methods.tot import solve_tot
 from src.methods.tool_augmented import solve_tool_augmented
 import re
 
@@ -32,23 +30,11 @@ def classify_question(question: str) -> str:
         "percent", "percentage", "sum", "difference", "product", "average",
         "ratio", "fraction", "multiply", "divide", "subtract", "add"
     ]
-    multi_step_keywords = [
-        "first", "then", "after", "before", "compare", "determine", "infer"
-    ]
-    planning_keywords = [
-        "best approach", "strategy", "plan", "steps"
-    ]
 
     if any(k in q for k in math_keywords) or looks_like_arithmetic(question):
         return "tool_augmented"
 
-    if any(k in q for k in planning_keywords):
-        return "tot"
-
-    if any(k in q for k in multi_step_keywords) and len(question.split()) > 20:
-        return "decomposition"
-
-    if len(question.split()) < 10:
+    if len(question.split()) < 16:
         return "baseline"
 
     return "cot"
@@ -59,16 +45,6 @@ def solve_with_router(question, llm, budget):
 
     if route == "tool_augmented":
         answer = solve_tool_augmented(question, llm, budget)
-        if answer and answer != "unknown":
-            return answer
-        return solve_cot(question, llm, budget) if budget.can_call() else "unknown"
-
-    if route == "tot":
-        answer = solve_tot(question, llm, budget)
-        return answer if answer and answer != "unknown" else "unknown"
-
-    if route == "decomposition":
-        answer = solve_decomposition(question, llm, budget)
         if answer and answer != "unknown":
             return answer
         return solve_cot(question, llm, budget) if budget.can_call() else "unknown"
