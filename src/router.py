@@ -1,9 +1,6 @@
 from src.methods.baseline import solve_baseline
 from src.methods.cot import solve_cot
-from src.methods.self_consistency import solve_self_consistency
-from src.methods.self_refine import solve_self_refine
 from src.methods.decomposition import solve_decomposition
-from src.methods.react import solve_react
 from src.methods.tot import solve_tot
 from src.methods.tool_augmented import solve_tool_augmented
 import re
@@ -36,8 +33,7 @@ def classify_question(question: str) -> str:
         "ratio", "fraction", "multiply", "divide", "subtract", "add"
     ]
     multi_step_keywords = [
-        "first", "then", "after", "before", "explain", "analyze",
-        "compare", "determine", "infer", "why"
+        "first", "then", "after", "before", "compare", "determine", "infer"
     ]
     planning_keywords = [
         "best approach", "strategy", "plan", "steps"
@@ -49,8 +45,11 @@ def classify_question(question: str) -> str:
     if any(k in q for k in planning_keywords):
         return "tot"
 
-    if len(question.split()) > 35 or any(k in q for k in multi_step_keywords):
+    if any(k in q for k in multi_step_keywords) and len(question.split()) > 20:
         return "decomposition"
+
+    if len(question.split()) < 10:
+        return "baseline"
 
     return "cot"
 
@@ -62,34 +61,22 @@ def solve_with_router(question, llm, budget):
         answer = solve_tool_augmented(question, llm, budget)
         if answer and answer != "unknown":
             return answer
-        if budget.can_call():
-            return solve_cot(question, llm, budget)
-        return "unknown"
+        return solve_cot(question, llm, budget) if budget.can_call() else "unknown"
 
     if route == "tot":
         answer = solve_tot(question, llm, budget)
-        if answer and answer != "unknown":
-            return answer
-        if budget.can_call():
-            return solve_react(question, llm, budget)
-        return "unknown"
+        return answer if answer and answer != "unknown" else "unknown"
 
     if route == "decomposition":
         answer = solve_decomposition(question, llm, budget)
         if answer and answer != "unknown":
             return answer
-        if budget.can_call():
-            return solve_self_refine(question, llm, budget)
-        return "unknown"
+        return solve_cot(question, llm, budget) if budget.can_call() else "unknown"
+
+    if route == "baseline":
+        answer = solve_baseline(question, llm, budget)
+        if answer and answer != "unknown":
+            return answer
 
     answer = solve_cot(question, llm, budget)
-    if answer and answer != "unknown":
-        return answer
-
-    if budget.can_call(2):
-        return solve_self_consistency(question, llm, budget)
-
-    if budget.can_call():
-        return solve_baseline(question, llm, budget)
-
-    return "unknown"
+    return answer if answer and answer != "unknown" else "unknown"

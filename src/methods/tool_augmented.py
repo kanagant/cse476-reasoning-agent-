@@ -79,5 +79,5 @@ def solve_tool_augmented(question, llm, budget):
         "Solve it carefully.\n"
         "Return only the final answer."
     )
-    fallback_text = llm.call(fallback_prompt, budget, temperature=0.0, max_tokens=256)
+    fallback_text = llm.call(fallback_prompt, budget, temperature=0.0, max_tokens=128)
     return extract_final_answer(fallback_text) or "unknown"

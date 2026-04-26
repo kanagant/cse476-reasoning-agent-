@@ -20,14 +20,14 @@ def _clean_lines(text: str):
     return lines
 
 
-def solve_tot(question, llm, budget, branches=3):
+def solve_tot(question, llm, budget, branches=2):
     branch_prompt = (
         f"Question:\n{question}\n\n"
         f"Generate {branches} different short reasoning approaches for solving this question.\n"
         "Do not fully solve it.\n"
         "Return them as a numbered list."
     )
-    branch_text = llm.call(branch_prompt, budget, temperature=0.3, max_tokens=256)
+    branch_text = llm.call(branch_prompt, budget, temperature=0.3, max_tokens=160)
     candidates = _clean_lines(branch_text)[:branches]
 
     if not candidates:
@@ -64,5 +64,5 @@ def solve_tot(question, llm, budget, branches=3):
         "Solve carefully.\n"
         "Return only the final answer."
     )
-    final_text = llm.call(solve_prompt, budget, temperature=0.0, max_tokens=256)
+    final_text = llm.call(solve_prompt, budget, temperature=0.0, max_tokens=160)
     return extract_final_answer(final_text) or "unknown"

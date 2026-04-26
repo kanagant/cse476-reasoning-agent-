@@ -27,8 +27,8 @@ def solve_decomposition(question, llm, budget):
         "Return only the subproblems as a numbered list.\n"
         "Do not solve them yet."
     )
-    plan_text = llm.call(plan_prompt, budget, temperature=0.0, max_tokens=256)
-    steps = _clean_lines(plan_text)[:4]
+    plan_text = llm.call(plan_prompt, budget, temperature=0.0, max_tokens=160)
+    steps = _clean_lines(plan_text)[:3]
 
     if not steps:
         return "unknown"
@@ -44,7 +44,7 @@ def solve_decomposition(question, llm, budget):
             "Solve this subproblem carefully.\n"
             "Return only the answer to this subproblem."
         )
-        sub_answer = llm.call(sub_prompt, budget, temperature=0.0, max_tokens=256)
+        sub_answer = llm.call(sub_prompt, budget, temperature=0.0, max_tokens=160)
         sub_answer = extract_final_answer(sub_answer)
         solved_steps.append((step, sub_answer))
 
@@ -60,5 +60,5 @@ def solve_decomposition(question, llm, budget):
         "Use the subproblem answers to solve the original question.\n"
         "Return only the final answer."
     )
-    final_text = llm.call(combine_prompt, budget, temperature=0.0, max_tokens=256)
+    final_text = llm.call(combine_prompt, budget, temperature=0.0, max_tokens=160)
     return extract_final_answer(final_text) or "unknown"
