@@ -46,6 +46,6 @@ def extract_final_answer(text: str) -> str:
 
 def solve_cot(question, llm, budget):
     prompt = build_cot_prompt(question)
-    response = llm.call(prompt, budget, temperature=0.0, max_tokens=64)
+    response = llm.call(prompt, budget, temperature=0.0, max_tokens=192)
     answer = extract_final_answer(response)
     return answer or "unknown"

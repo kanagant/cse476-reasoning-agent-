@@ -127,7 +127,6 @@ def solve_with_router(question, llm, budget):
             return solve_cot(question, llm, budget)
         return "unknown"
 
-    # default: CoT, then refine if needed
     answer = solve_cot(question, llm, budget)
     if answer and answer != "unknown":
         return answer
